@@ -1,0 +1,10 @@
+{
+  "description": "Explore microbiology through engaging, interactive content designed for students, researchers, and enthusiasts, making complex concepts accessible and visual.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
