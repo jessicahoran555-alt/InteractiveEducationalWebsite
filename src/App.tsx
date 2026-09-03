@@ -1,4 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
+import { User } from './types/auth';
+import { DEFAULT_USERS, DEFAULT_PASSWORDS } from './services/mockData';
+import AuthModal from './components/AuthModal';
+import StudentBasicsView from './components/StudentBasicsView';
+import AdminAcademicView from './components/AdminAcademicView';
 
 // ============================================================
 // DATA
@@ -275,7 +280,21 @@ const techniques = [
 // COMPONENTS
 // ============================================================
 
-function Navbar() {
+interface NavbarProps {
+  currentUser: User | null;
+  currentView: 'main' | 'student-basics' | 'admin-academic';
+  onOpenAuthModal: () => void;
+  onSignOut: () => void;
+  onSwitchView: (view: 'main' | 'student-basics' | 'admin-academic') => void;
+}
+
+function Navbar({
+  currentUser,
+  currentView,
+  onOpenAuthModal,
+  onSignOut,
+  onSwitchView,
+}: NavbarProps) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -285,23 +304,31 @@ function Navbar() {
     return () => window.removeEventListener('scroll', handler);
   }, []);
 
-  const links = ['Organisms', 'Concepts', 'Timeline', 'Techniques'];
+  const generalLinks = ['Organisms', 'Concepts', 'Timeline', 'Techniques'];
 
   return (
     <nav
       className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
       style={{
-        background: scrolled ? 'rgba(2, 11, 24, 0.92)' : 'transparent',
-        backdropFilter: scrolled ? 'blur(16px)' : 'none',
-        borderBottom: scrolled ? '1px solid rgba(20, 184, 166, 0.1)' : '1px solid transparent',
+        background: scrolled ? 'rgba(2, 11, 24, 0.94)' : 'rgba(2, 11, 24, 0.75)',
+        backdropFilter: 'blur(16px)',
+        borderBottom: '1px solid rgba(20, 184, 166, 0.15)',
       }}
     >
-      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        <a href="#" className="flex items-center gap-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
+        {/* Brand */}
+        <button
+          onClick={() => {
+            if (currentUser?.role === 'student') onSwitchView('student-basics');
+            else if (currentUser?.role === 'admin') onSwitchView('admin-academic');
+            else onSwitchView('main');
+          }}
+          className="flex items-center gap-2.5 text-left group"
+        >
           <div
-            className="w-9 h-9 rounded-full flex items-center justify-center relative"
+            className="w-9 h-9 rounded-full flex items-center justify-center relative transition-transform group-hover:scale-105"
             style={{
-              background: 'radial-gradient(circle, rgba(20,184,166,0.3), rgba(20,184,166,0.05))',
+              background: 'radial-gradient(circle, rgba(20,184,166,0.35), rgba(20,184,166,0.05))',
               border: '1px solid rgba(20, 184, 166, 0.5)',
             }}
           >
@@ -313,45 +340,144 @@ function Navbar() {
               <circle cx="2" cy="11" r="0.8" fill="#22d3ee" opacity="0.7" />
             </svg>
           </div>
-          <span className="font-display font-bold text-lg tracking-wide text-white">
-            Micro<span style={{ color: '#14b8a6' }}>Sphere</span>
-          </span>
-        </a>
+          <div className="flex flex-col">
+            <span className="font-display font-bold text-lg tracking-wide text-white leading-none">
+              Micro<span style={{ color: '#14b8a6' }}>Sphere</span>
+            </span>
+            <span className="text-[10px] font-mono text-teal-400/80 tracking-widest uppercase">
+              {currentUser?.role === 'admin'
+                ? 'Academic Administration'
+                : currentUser?.role === 'student'
+                ? 'Student Learning'
+                : 'Educational Portal'}
+            </span>
+          </div>
+        </button>
 
-        <div className="hidden md:flex items-center gap-8">
-          {links.map((link) => (
-            <a
-              key={link}
-              href={`#${link.toLowerCase()}`}
-              className="text-sm text-slate-400 hover:text-teal-400 transition-colors duration-200 tracking-wide font-medium"
+        {/* Desktop Navigation Links */}
+        <div className="hidden md:flex items-center gap-5">
+          {currentUser?.role === 'student' && (
+            <button
+              onClick={() => onSwitchView('student-basics')}
+              className={`text-xs font-display font-semibold px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 ${
+                currentView === 'student-basics'
+                  ? 'bg-teal-500/20 text-teal-300 border border-teal-500/50 shadow-sm'
+                  : 'text-slate-400 hover:text-teal-300'
+              }`}
             >
-              {link}
-            </a>
-          ))}
+              <span>📖</span>
+              <span>The Basics (Student)</span>
+            </button>
+          )}
+
+          {currentUser?.role === 'admin' && (
+            <button
+              onClick={() => onSwitchView('admin-academic')}
+              className={`text-xs font-display font-semibold px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 ${
+                currentView === 'admin-academic'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-sm'
+                  : 'text-slate-400 hover:text-cyan-300'
+              }`}
+            >
+              <span>📊</span>
+              <span>Academic Information (Admin)</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => onSwitchView('main')}
+            className={`text-xs font-display font-medium px-3 py-1.5 rounded-full transition-all ${
+              currentView === 'main'
+                ? 'text-teal-400 border border-teal-500/30 bg-teal-950/40'
+                : 'text-slate-400 hover:text-teal-300'
+            }`}
+          >
+            Full Website
+          </button>
+
+          {currentView === 'main' &&
+            generalLinks.map((link) => (
+              <a
+                key={link}
+                href={`#${link.toLowerCase()}`}
+                className="text-xs text-slate-400 hover:text-teal-400 transition-colors font-medium tracking-wide"
+              >
+                {link}
+              </a>
+            ))}
         </div>
 
-        <a
-          href="#organisms"
-          className="hidden md:block px-5 py-2 text-sm font-semibold rounded-full transition-all duration-200 font-display tracking-wide"
-          style={{
-            background: 'linear-gradient(135deg, rgba(20,184,166,0.2), rgba(34,211,238,0.1))',
-            border: '1px solid rgba(20, 184, 166, 0.4)',
-            color: '#2dd4bf',
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLAnchorElement).style.background = 'linear-gradient(135deg, rgba(20,184,166,0.35), rgba(34,211,238,0.2))';
-            (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(20,184,166,0.7)';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLAnchorElement).style.background = 'linear-gradient(135deg, rgba(20,184,166,0.2), rgba(34,211,238,0.1))';
-            (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(20, 184, 166, 0.4)';
-          }}
-        >
-          Start Exploring
-        </a>
+        {/* Right Section: Auth State / Actions */}
+        <div className="hidden md:flex items-center gap-3">
+          {currentUser ? (
+            <div className="flex items-center gap-3">
+              {/* User Profile Pill */}
+              <div
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full"
+                style={{
+                  background:
+                    currentUser.role === 'admin'
+                      ? 'rgba(34, 211, 238, 0.12)'
+                      : 'rgba(20, 184, 166, 0.12)',
+                  border:
+                    currentUser.role === 'admin'
+                      ? '1px solid rgba(34, 211, 238, 0.35)'
+                      : '1px solid rgba(20, 184, 166, 0.35)',
+                }}
+              >
+                <span className="text-sm">{currentUser.avatar || (currentUser.role === 'admin' ? '🛡️' : '🎓')}</span>
+                <div className="text-left leading-tight">
+                  <div className="text-xs font-display font-semibold text-white truncate max-w-[120px]">
+                    {currentUser.name}
+                  </div>
+                  <div
+                    className="text-[9px] font-mono uppercase tracking-wider font-semibold"
+                    style={{ color: currentUser.role === 'admin' ? '#67e8f9' : '#2dd4bf' }}
+                  >
+                    {currentUser.role}
+                  </div>
+                </div>
+              </div>
 
+              {/* Sign Out */}
+              <button
+                onClick={onSignOut}
+                className="px-3 py-1.5 rounded-full text-xs font-mono text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/40 transition-colors"
+                title="Sign out of your account"
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onOpenAuthModal}
+                className="px-5 py-2 text-xs font-semibold rounded-full transition-all duration-200 font-display tracking-wide flex items-center gap-1.5"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(20,184,166,0.3), rgba(34,211,238,0.2))',
+                  border: '1px solid rgba(20, 184, 166, 0.6)',
+                  color: '#2dd4bf',
+                  boxShadow: '0 0 16px rgba(20, 184, 166, 0.2)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(20,184,166,0.45), rgba(34,211,238,0.3))';
+                  e.currentTarget.style.boxShadow = '0 0 24px rgba(20, 184, 166, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(20,184,166,0.3), rgba(34,211,238,0.2))';
+                  e.currentTarget.style.boxShadow = '0 0 16px rgba(20, 184, 166, 0.2)';
+                }}
+              >
+                <span>🔐</span>
+                <span>Sign In / Rules</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Mobile Hamburger Toggle */}
         <button
-          className="md:hidden text-slate-400 hover:text-teal-400 transition-colors"
+          className="md:hidden text-slate-400 hover:text-teal-400 transition-colors p-1"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"
         >
@@ -369,21 +495,94 @@ function Navbar() {
         </button>
       </div>
 
+      {/* Mobile Menu dropdown */}
       {menuOpen && (
         <div
-          className="md:hidden px-6 pb-5 pt-2 flex flex-col gap-4"
-          style={{ background: 'rgba(2, 11, 24, 0.97)', borderBottom: '1px solid rgba(20, 184, 166, 0.1)' }}
+          className="md:hidden px-6 pb-6 pt-3 flex flex-col gap-3.5"
+          style={{ background: 'rgba(2, 11, 24, 0.98)', borderBottom: '1px solid rgba(20, 184, 166, 0.2)' }}
         >
-          {links.map((link) => (
-            <a
-              key={link}
-              href={`#${link.toLowerCase()}`}
-              className="text-slate-300 hover:text-teal-400 transition-colors font-medium text-sm"
-              onClick={() => setMenuOpen(false)}
+          {currentUser ? (
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">{currentUser.avatar || '👤'}</span>
+                <div>
+                  <div className="text-sm font-display font-semibold text-white">{currentUser.name}</div>
+                  <div className="text-[10px] font-mono text-teal-400 uppercase">{currentUser.role}</div>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  onSignOut();
+                  setMenuOpen(false);
+                }}
+                className="text-xs text-red-400 font-mono px-3 py-1 rounded-lg border border-red-900/50 bg-red-950/30"
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                onOpenAuthModal();
+                setMenuOpen(false);
+              }}
+              className="w-full py-2.5 rounded-xl font-display font-semibold text-xs text-center text-slate-950 bg-teal-400 mb-2"
             >
-              {link}
-            </a>
-          ))}
+              Sign In with Name & Password
+            </button>
+          )}
+
+          {currentUser?.role === 'student' && (
+            <button
+              onClick={() => {
+                onSwitchView('student-basics');
+                setMenuOpen(false);
+              }}
+              className={`text-left text-sm font-semibold flex items-center gap-2 ${
+                currentView === 'student-basics' ? 'text-teal-300' : 'text-slate-300'
+              }`}
+            >
+              <span>📖</span>
+              <span>The Basics (Student)</span>
+            </button>
+          )}
+
+          {currentUser?.role === 'admin' && (
+            <button
+              onClick={() => {
+                onSwitchView('admin-academic');
+                setMenuOpen(false);
+              }}
+              className={`text-left text-sm font-semibold flex items-center gap-2 ${
+                currentView === 'admin-academic' ? 'text-cyan-300' : 'text-slate-300'
+              }`}
+            >
+              <span>📊</span>
+              <span>Academic Information (Admin)</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => {
+              onSwitchView('main');
+              setMenuOpen(false);
+            }}
+            className={`text-left text-sm ${currentView === 'main' ? 'text-teal-400' : 'text-slate-400'}`}
+          >
+            Full Educational Platform
+          </button>
+
+          {currentView === 'main' &&
+            generalLinks.map((link) => (
+              <a
+                key={link}
+                href={`#${link.toLowerCase()}`}
+                className="text-slate-400 hover:text-teal-400 transition-colors font-medium text-xs pl-2"
+                onClick={() => setMenuOpen(false)}
+              >
+                &bull; {link}
+              </a>
+            ))}
         </div>
       )}
     </nav>
@@ -411,7 +610,15 @@ function FloatingCell({ size, x, y, delay, duration, anim, color, filled }: {
   );
 }
 
-function Hero() {
+function Hero({
+  currentUser,
+  onOpenAuthModal,
+  onSwitchView,
+}: {
+  currentUser: User | null;
+  onOpenAuthModal: () => void;
+  onSwitchView: (view: 'main' | 'student-basics' | 'admin-academic') => void;
+}) {
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden hero-grid">
       {/* Deep radial glow */}
@@ -470,9 +677,9 @@ function Hero() {
       />
 
       {/* Content */}
-      <div className="relative z-10 text-center max-w-4xl px-6" style={{ animation: 'slide-up 0.8s ease-out both' }}>
+      <div className="relative z-10 text-center max-w-4xl px-6 pt-16" style={{ animation: 'slide-up 0.8s ease-out both' }}>
         <div
-          className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full text-xs font-mono tracking-widest mb-8 uppercase"
+          className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full text-xs font-mono tracking-widest mb-6 uppercase"
           style={{
             border: '1px solid rgba(20, 184, 166, 0.35)',
             background: 'rgba(20, 184, 166, 0.08)',
@@ -486,7 +693,7 @@ function Hero() {
           Interactive Microbiology Platform
         </div>
 
-        <h1 className="font-display font-black leading-none mb-6" style={{ fontSize: 'clamp(3rem, 8vw, 6.5rem)' }}>
+        <h1 className="font-display font-black leading-none mb-6" style={{ fontSize: 'clamp(2.75rem, 7.5vw, 6rem)' }}>
           <span className="block text-white mb-2">Explore the</span>
           <span
             className="block"
@@ -502,17 +709,17 @@ function Hero() {
         </h1>
 
         <p
-          className="text-lg md:text-xl leading-relaxed max-w-2xl mx-auto mb-10"
+          className="text-base md:text-lg leading-relaxed max-w-2xl mx-auto mb-8"
           style={{ color: '#94a3b8' }}
         >
           Journey through Earth's microbial universe — from ancient archaea to genomic parasites.
           Interactive science education crafted for researchers, students, and curious minds.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
           <a
             href="#organisms"
-            className="px-8 py-3.5 rounded-full font-semibold font-display text-sm tracking-wide transition-all duration-200"
+            className="px-7 py-3 rounded-full font-semibold font-display text-sm tracking-wide transition-all duration-200"
             style={{
               background: 'linear-gradient(135deg, #14b8a6, #0d9488)',
               color: '#020b18',
@@ -525,7 +732,7 @@ function Hero() {
           </a>
           <a
             href="#concepts"
-            className="px-8 py-3.5 rounded-full font-medium font-display text-sm tracking-wide transition-all duration-200"
+            className="px-7 py-3 rounded-full font-medium font-display text-sm tracking-wide transition-all duration-200"
             style={{
               border: '1px solid rgba(20, 184, 166, 0.3)',
               color: '#94a3b8',
@@ -543,8 +750,126 @@ function Hero() {
           </a>
         </div>
 
+        {/* Role-Based Gateway Banner */}
+        <div
+          className="max-w-2xl mx-auto rounded-3xl p-5 md:p-6 text-left mb-8"
+          style={{
+            background: 'linear-gradient(145deg, rgba(7, 21, 37, 0.95), rgba(4, 13, 26, 0.98))',
+            border: '1px solid rgba(20, 184, 166, 0.3)',
+            boxShadow: '0 12px 35px rgba(0, 0, 0, 0.5), 0 0 30px rgba(20, 184, 166, 0.1)',
+          }}
+        >
+          {currentUser ? (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">{currentUser.avatar || (currentUser.role === 'admin' ? '🛡️' : '🎓')}</span>
+                <div>
+                  <div className="text-xs font-mono text-teal-400 font-semibold uppercase tracking-wider">
+                    Active Session: {currentUser.role}
+                  </div>
+                  <div className="text-base font-display font-bold text-white">
+                    Signed in as {currentUser.name}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {currentUser.role === 'student'
+                      ? 'Access foundational microbiology modules, flashcards & knowledge quiz.'
+                      : 'Access student rosters, GPA management, course curriculum & announcements.'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() =>
+                  onSwitchView(currentUser.role === 'student' ? 'student-basics' : 'admin-academic')
+                }
+                className="px-5 py-2.5 rounded-xl font-display font-semibold text-xs transition-all whitespace-nowrap shadow-md"
+                style={{
+                  background:
+                    currentUser.role === 'student'
+                      ? 'linear-gradient(135deg, #14b8a6, #0d9488)'
+                      : 'linear-gradient(135deg, #22d3ee, #0891b2)',
+                  color: '#020b18',
+                }}
+              >
+                {currentUser.role === 'student' ? 'Open The Basics →' : 'Open Academic Info →'}
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-xs font-mono text-teal-400 uppercase tracking-wider font-semibold flex items-center gap-1.5">
+                  <span>🔐</span>
+                  <span>Role-Based Sign-In Rules</span>
+                </span>
+                <span className="text-[10px] font-mono text-slate-400">Name + Password Required</span>
+              </div>
+              <p className="text-xs text-slate-300 mb-4 leading-relaxed font-sans">
+                Sign in by name and password: when <strong className="text-teal-300 font-semibold">students</strong> sign in appear{' '}
+                <strong className="text-teal-300 font-semibold">The Basics</strong> (study guides, interactive flashcards, quiz), and when{' '}
+                <strong className="text-cyan-300 font-semibold">admins</strong> sign in show{' '}
+                <strong className="text-cyan-300 font-semibold">Academic Information</strong> (student rosters, GPA tracking, courses).
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  onClick={onOpenAuthModal}
+                  className="p-3.5 rounded-2xl text-left transition-all group"
+                  style={{
+                    background: 'rgba(20, 184, 166, 0.1)',
+                    border: '1px solid rgba(20, 184, 166, 0.35)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(20, 184, 166, 0.2)';
+                    e.currentTarget.style.borderColor = 'rgba(20, 184, 166, 0.6)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(20, 184, 166, 0.1)';
+                    e.currentTarget.style.borderColor = 'rgba(20, 184, 166, 0.35)';
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xl">🎓</span>
+                    <span className="font-display font-bold text-xs text-teal-300 group-hover:text-white">
+                      Students &rarr; The Basics
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 block leading-tight">
+                    Sign in to view fundamental cell modules, flashcards & quiz
+                  </span>
+                </button>
+
+                <button
+                  onClick={onOpenAuthModal}
+                  className="p-3.5 rounded-2xl text-left transition-all group"
+                  style={{
+                    background: 'rgba(34, 211, 238, 0.1)',
+                    border: '1px solid rgba(34, 211, 238, 0.35)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(34, 211, 238, 0.2)';
+                    e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.6)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(34, 211, 238, 0.1)';
+                    e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.35)';
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xl">🛡️</span>
+                    <span className="font-display font-bold text-xs text-cyan-300 group-hover:text-white">
+                      Admins &rarr; Academic Info
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 block leading-tight">
+                    Sign in to manage student rosters, GPAs, courses & notices
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Floating stat chips */}
-        <div className="flex flex-wrap gap-3 justify-center mt-12">
+        <div className="flex flex-wrap gap-2.5 justify-center">
           {[
             { label: '6 Microbial Domains', icon: '⬡' },
             { label: '4 Core Concepts', icon: '◫' },
@@ -568,9 +893,9 @@ function Hero() {
       </div>
 
       {/* Scroll cue */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-        <span className="text-xs font-mono tracking-widest" style={{ color: '#334155' }}>SCROLL</span>
-        <div style={{ width: 1, height: 40, background: 'linear-gradient(to bottom, rgba(20,184,166,0.4), transparent)', animation: 'pulse-glow 2.5s ease-in-out infinite' }} />
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5">
+        <span className="text-[10px] font-mono tracking-widest" style={{ color: '#334155' }}>SCROLL</span>
+        <div style={{ width: 1, height: 32, background: 'linear-gradient(to bottom, rgba(20,184,166,0.4), transparent)', animation: 'pulse-glow 2.5s ease-in-out infinite' }} />
       </div>
     </section>
   );
@@ -1261,19 +1586,147 @@ function Footer() {
 // ============================================================
 
 export default function App() {
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('microsphere_auth_user');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // fallback
+      }
+    }
+    return null;
+  });
+
+  const [currentView, setCurrentView] = useState<'main' | 'student-basics' | 'admin-academic'>(() => {
+    const savedUser = localStorage.getItem('microsphere_auth_user');
+    if (savedUser) {
+      try {
+        const parsed: User = JSON.parse(savedUser);
+        if (parsed.role === 'student') return 'student-basics';
+        if (parsed.role === 'admin') return 'admin-academic';
+      } catch (e) {}
+    }
+    return 'main';
+  });
+
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  const [registeredUsers, setRegisteredUsers] = useState<User[]>(() => {
+    const saved = localStorage.getItem('microsphere_registered_users');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return DEFAULT_USERS;
+  });
+
+  const [passwordsMap, setPasswordsMap] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem('microsphere_passwords');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return DEFAULT_PASSWORDS;
+  });
+
+  const handleLoginSuccess = (user: User) => {
+    setCurrentUser(user);
+    localStorage.setItem('microsphere_auth_user', JSON.stringify(user));
+    // When student signs in appear the basics; when admin signs in show academic information
+    if (user.role === 'student') {
+      setCurrentView('student-basics');
+    } else if (user.role === 'admin') {
+      setCurrentView('admin-academic');
+    } else {
+      setCurrentView('main');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSignOut = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('microsphere_auth_user');
+    setCurrentView('main');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleRegisterUser = (newUser: User, password: string) => {
+    const updatedUsers = [...registeredUsers, newUser];
+    const updatedPasswords = {
+      ...passwordsMap,
+      [newUser.name]: password,
+      [newUser.name.toLowerCase()]: password,
+    };
+    setRegisteredUsers(updatedUsers);
+    setPasswordsMap(updatedPasswords);
+    localStorage.setItem('microsphere_registered_users', JSON.stringify(updatedUsers));
+    localStorage.setItem('microsphere_passwords', JSON.stringify(updatedPasswords));
+  };
+
   return (
     <div
       className="min-h-full overflow-x-hidden"
       style={{ background: '#020b18', color: '#f0f9ff' }}
     >
-      <Navbar />
-      <Hero />
-      <OrganismsSection />
-      <ConceptsSection />
-      <StatsSection />
-      <TimelineSection />
-      <TechniquesSection />
+      <Navbar
+        currentUser={currentUser}
+        currentView={currentView}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onSignOut={handleSignOut}
+        onSwitchView={(view) => {
+          setCurrentView(view);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
+
+      {/* Role-Based Dynamic Views */}
+      {currentView === 'student-basics' && currentUser?.role === 'student' ? (
+        <StudentBasicsView
+          user={currentUser}
+          onExploreFullSite={() => {
+            setCurrentView('main');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
+      ) : currentView === 'admin-academic' && currentUser?.role === 'admin' ? (
+        <AdminAcademicView
+          user={currentUser}
+          onExploreFullSite={() => {
+            setCurrentView('main');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
+      ) : (
+        <>
+          <Hero
+            currentUser={currentUser}
+            onOpenAuthModal={() => setIsAuthModalOpen(true)}
+            onSwitchView={(view) => {
+              setCurrentView(view);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+          <OrganismsSection />
+          <ConceptsSection />
+          <StatsSection />
+          <TimelineSection />
+          <TechniquesSection />
+        </>
+      )}
+
       <Footer />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
+        registeredUsers={registeredUsers}
+        onRegisterUser={handleRegisterUser}
+        passwordsMap={passwordsMap}
+      />
     </div>
   );
 }
