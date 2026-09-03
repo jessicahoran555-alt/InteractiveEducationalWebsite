@@ -9,6 +9,7 @@ import {
 import AuthModal from './components/AuthModal';
 import StudentBasicsView from './components/StudentBasicsView';
 import AdminAcademicView from './components/AdminAcademicView';
+import WebsiteAnalyticsModal from './components/WebsiteAnalyticsModal';
 
 // ============================================================
 // DATA
@@ -291,6 +292,7 @@ interface NavbarProps {
   onOpenAuthModal: () => void;
   onSignOut: () => void;
   onSwitchView: (view: 'main' | 'student-basics' | 'admin-academic') => void;
+  onOpenAnalytics?: () => void;
 }
 
 function Navbar({
@@ -299,6 +301,7 @@ function Navbar({
   onOpenAuthModal,
   onSignOut,
   onSwitchView,
+  onOpenAnalytics,
 }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -444,6 +447,23 @@ function Navbar({
                 </div>
               </div>
 
+              {/* Owner Analytics Button - Only for Admin */}
+              {currentUser.role === 'admin' && (
+                <button
+                  onClick={onOpenAnalytics}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-semibold transition-all shadow-sm group"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.25), rgba(99, 102, 241, 0.25))',
+                    border: '1px solid rgba(14, 165, 233, 0.6)',
+                    color: '#38bdf8',
+                  }}
+                  title="Website Analytics & Statistical Analysis (Only for you)"
+                >
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse inline-block" />
+                  <span>📈 Analytics & Stats</span>
+                </button>
+              )}
+
               {/* Sign Out */}
               <button
                 onClick={onSignOut}
@@ -564,6 +584,19 @@ function Navbar({
             >
               <span>📊</span>
               <span>Academic Information (Admin)</span>
+            </button>
+          )}
+
+          {currentUser?.role === 'admin' && (
+            <button
+              onClick={() => {
+                onOpenAnalytics?.();
+                setMenuOpen(false);
+              }}
+              className="text-left text-sm font-semibold flex items-center gap-2 text-sky-300"
+            >
+              <span>📈</span>
+              <span>Website Analytics & Stats (Owner)</span>
             </button>
           )}
 
@@ -1616,6 +1649,7 @@ export default function App() {
   });
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
 
   const [registeredUsers, setRegisteredUsers] = useState<User[]>(() => {
     const saved = localStorage.getItem('microsphere_registered_users');
@@ -1783,6 +1817,7 @@ export default function App() {
           setCurrentView(view);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
+        onOpenAnalytics={() => setIsAnalyticsOpen(true)}
       />
 
       {/* Role-Based Dynamic Views */}
@@ -1828,6 +1863,33 @@ export default function App() {
         </>
       )}
 
+      {/* Owner/Admin Only Floating Analytics & Statistical Analysis Button */}
+      {currentUser?.role === 'admin' && (
+        <button
+          onClick={() => setIsAnalyticsOpen(true)}
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-4 md:px-5 py-3 rounded-full font-display font-bold text-xs tracking-wide shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95 group"
+          style={{
+            background: 'linear-gradient(135deg, #0ea5e9, #6366f1)',
+            color: '#ffffff',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            boxShadow: '0 10px 30px rgba(14, 165, 233, 0.4), 0 0 25px rgba(99, 102, 241, 0.25)',
+          }}
+          title="Website Analytics & Statistical Analysis Dashboard (Only appears for you)"
+        >
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span>📈</span>
+            <span>Analytics & Stats</span>
+          </span>
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-950/40 text-cyan-200 border border-white/10 hidden sm:inline-block">
+            Only for you
+          </span>
+        </button>
+      )}
+
       <Footer />
 
       <AuthModal
@@ -1839,6 +1901,15 @@ export default function App() {
         passwordsMap={passwordsMap}
         rules={authRules}
         onAddAuditLog={handleAddAuditLog}
+      />
+
+      <WebsiteAnalyticsModal
+        isOpen={isAnalyticsOpen}
+        onClose={() => setIsAnalyticsOpen(false)}
+        currentUser={currentUser}
+        registeredUsersCount={registeredUsers.length}
+        rules={authRules}
+        auditLogs={auditLogs}
       />
     </div>
   );
