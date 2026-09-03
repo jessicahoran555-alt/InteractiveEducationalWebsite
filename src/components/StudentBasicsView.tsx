@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, BasicTopic, Flashcard, QuizQuestion } from '../types/auth';
+import { User, BasicTopic, Flashcard, QuizQuestion, AuthRulesConfig } from '../types/auth';
 import {
   BASIC_TOPICS,
   BASIC_FLASHCARDS,
@@ -10,9 +10,10 @@ import {
 interface StudentBasicsViewProps {
   user: User;
   onExploreFullSite: () => void;
+  rules?: AuthRulesConfig;
 }
 
-export default function StudentBasicsView({ user, onExploreFullSite }: StudentBasicsViewProps) {
+export default function StudentBasicsView({ user, onExploreFullSite, rules }: StudentBasicsViewProps) {
   const [activeTab, setActiveTab] = useState<'modules' | 'flashcards' | 'quiz' | 'checklist'>('modules');
   const [selectedTopicId, setSelectedTopicId] = useState<string>(BASIC_TOPICS[0].id);
 
@@ -175,6 +176,27 @@ export default function StudentBasicsView({ user, onExploreFullSite }: StudentBa
               {completedChecklistCount}/{checklist.length} Completed
             </div>
           </div>
+        </div>
+
+        {/* Rules Connection Info Banner */}
+        <div
+          className="mt-5 p-3 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-mono"
+          style={{
+            background: 'rgba(20, 184, 166, 0.08)',
+            border: '1px dashed rgba(20, 184, 166, 0.3)',
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-teal-400">🛡️</span>
+            <span className="text-slate-300">
+              <strong className="text-teal-300">Rule Policy Active:</strong> Authenticated as{' '}
+              <strong className="text-white">Student</strong> &bull; Validated Name &ge;{' '}
+              {rules?.minNameLength ?? 3} chars, Password &ge; {rules?.minPasswordLength ?? 6} chars.
+            </span>
+          </div>
+          <span className="text-[11px] text-teal-400/90 bg-teal-950/80 px-2.5 py-0.5 rounded-full border border-teal-800">
+            The Basics: Unlocked (Academic Admin: Restricted)
+          </span>
         </div>
       </div>
 

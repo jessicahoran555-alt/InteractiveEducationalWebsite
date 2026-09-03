@@ -1,24 +1,58 @@
 import React, { useState } from 'react';
 import {
   User,
+  UserRole,
   StudentAcademicRecord,
   AcademicCourse,
   AcademicAnnouncement,
   AcademicStanding,
+  AuthRulesConfig,
+  AuditLogEntry,
 } from '../types/auth';
 import {
   INITIAL_STUDENT_ROSTER,
   ACADEMIC_COURSES,
   INITIAL_ANNOUNCEMENTS,
+  ROLE_PERMISSIONS_MATRIX,
+  DEFAULT_AUTH_RULES,
 } from '../services/mockData';
 
 interface AdminAcademicViewProps {
   user: User;
   onExploreFullSite: () => void;
+  rules: AuthRulesConfig;
+  onUpdateRules: (newRules: AuthRulesConfig) => void;
+  registeredUsers: User[];
+  onUpdateUserRole: (userId: string, newRole: UserRole) => void;
+  onDeleteUser: (userId: string) => void;
+  auditLogs: AuditLogEntry[];
+  onClearAuditLogs: () => void;
 }
 
-export default function AdminAcademicView({ user, onExploreFullSite }: AdminAcademicViewProps) {
-  const [activeTab, setActiveTab] = useState<'roster' | 'courses' | 'analytics' | 'announcements'>('roster');
+export default function AdminAcademicView({
+  user,
+  onExploreFullSite,
+  rules,
+  onUpdateRules,
+  registeredUsers,
+  onUpdateUserRole,
+  onDeleteUser,
+  auditLogs,
+  onClearAuditLogs,
+}: AdminAcademicViewProps) {
+  const [activeTab, setActiveTab] = useState<
+    'roster' | 'courses' | 'analytics' | 'announcements' | 'rules'
+  >('roster');
+
+  // Local rules editor state
+  const [localRules, setLocalRules] = useState<AuthRulesConfig>(rules);
+  const [ruleSaveToast, setRuleSaveToast] = useState<string | null>(null);
+
+  const handleSaveRules = () => {
+    onUpdateRules(localRules);
+    setRuleSaveToast('Authentication & Role rules successfully updated and enforced live!');
+    setTimeout(() => setRuleSaveToast(null), 3500);
+  };
 
   // Student roster state (stored and modifiable)
   const [roster, setRoster] = useState<StudentAcademicRecord[]>(() => {
@@ -296,6 +330,7 @@ export default function AdminAcademicView({ user, onExploreFullSite }: AdminAcad
           { id: 'courses', label: '📚 Course Curriculum & Syllabi', count: '4 Courses' },
           { id: 'analytics', label: '📊 Grade Distribution & Stats', count: 'Analytics' },
           { id: 'announcements', label: '📢 Academic Announcements', count: `${announcements.length} Notices` },
+          { id: 'rules', label: '🛡️ Rules & Access Control', count: 'Active Policy' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -819,6 +854,362 @@ export default function AdminAcademicView({ user, onExploreFullSite }: AdminAcad
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* TAB 5: RULES & ACCESS CONTROL DASHBOARD */}
+      {/* ============================================================ */}
+      {activeTab === 'rules' && (
+        <div className="space-y-8">
+          {/* Header & Status Banner */}
+          <div
+            className="rounded-3xl p-6 relative overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, rgba(20, 184, 166, 0.12), rgba(34, 211, 238, 0.08))',
+              border: '1px solid rgba(20, 184, 166, 0.3)',
+            }}
+          >
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-xs font-mono text-emerald-400 font-semibold uppercase tracking-wider">
+                    Rules System Active & Enforced
+                  </span>
+                </div>
+                <h3 className="font-display font-bold text-xl text-white">
+                  Authentication & Role-Based Access Control (RBAC) Dashboard
+                </h3>
+                <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                  These rules dictate authentication constraints (Name & Password length, complexity) and
+                  strictly govern which views are delivered upon login: <strong>Students</strong> appear <strong>The Basics</strong>,
+                  while <strong>Admins</strong> show <strong>Academic Information</strong>.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLocalRules(DEFAULT_AUTH_RULES);
+                    onUpdateRules(DEFAULT_AUTH_RULES);
+                    setRuleSaveToast('Default rules restored!');
+                    setTimeout(() => setRuleSaveToast(null), 3000);
+                  }}
+                  className="px-3.5 py-2 rounded-xl text-xs font-mono text-slate-300 bg-slate-900 border border-slate-700 hover:border-slate-500 transition-colors"
+                >
+                  Reset Defaults
+                </button>
+              </div>
+            </div>
+
+            {ruleSaveToast && (
+              <div className="mt-3 p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs font-mono flex items-center gap-2">
+                <span>✅</span>
+                <span>{ruleSaveToast}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Section 1: Dynamic Rule Configuration Form */}
+          <div
+            className="rounded-3xl p-6"
+            style={{ background: 'rgba(7, 21, 37, 0.75)', border: '1px solid rgba(34, 211, 238, 0.2)' }}
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+              <div>
+                <h4 className="font-display font-bold text-base text-white flex items-center gap-2">
+                  <span>⚙️</span> Authentication Constraints & Policies
+                </h4>
+                <p className="text-xs text-slate-400">Modify login verification rules in real-time</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleSaveRules}
+                className="px-5 py-2.5 rounded-xl text-xs font-display font-semibold transition-all shadow-md self-start sm:self-auto"
+                style={{
+                  background: 'linear-gradient(135deg, #14b8a6, #0d9488)',
+                  color: '#020b18',
+                }}
+              >
+                Save & Enforce Rules
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Min Name Length */}
+              <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-xs font-mono text-slate-300 font-medium">Minimum Name Length</label>
+                  <span className="text-xs font-mono text-teal-400 font-bold px-2 py-0.5 rounded bg-teal-950/60 border border-teal-800">
+                    {localRules.minNameLength} chars
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={2}
+                  max={10}
+                  value={localRules.minNameLength}
+                  onChange={(e) => setLocalRules({ ...localRules, minNameLength: parseInt(e.target.value) })}
+                  className="w-full accent-teal-400 cursor-pointer"
+                />
+                <p className="text-[11px] text-slate-500 mt-2">
+                  Names with fewer than {localRules.minNameLength} characters will be rejected during sign in and registration.
+                </p>
+              </div>
+
+              {/* Min Password Length */}
+              <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-xs font-mono text-slate-300 font-medium">Minimum Password Length</label>
+                  <span className="text-xs font-mono text-cyan-400 font-bold px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-800">
+                    {localRules.minPasswordLength} chars
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={4}
+                  max={16}
+                  value={localRules.minPasswordLength}
+                  onChange={(e) => setLocalRules({ ...localRules, minPasswordLength: parseInt(e.target.value) })}
+                  className="w-full accent-cyan-400 cursor-pointer"
+                />
+                <p className="text-[11px] text-slate-500 mt-2">
+                  Passwords with fewer than {localRules.minPasswordLength} characters are prohibited.
+                </p>
+              </div>
+
+              {/* Special Character Toggle */}
+              <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-xs font-mono text-slate-200 font-semibold mb-1">
+                    Require Special Characters
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Mandate symbols like (!@#$%^&*) in passwords
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={localRules.requireSpecialChar}
+                  onChange={(e) => setLocalRules({ ...localRules, requireSpecialChar: e.target.checked })}
+                  className="w-5 h-5 rounded accent-teal-400 cursor-pointer"
+                />
+              </div>
+
+              {/* Allow Registration Toggle */}
+              <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-xs font-mono text-slate-200 font-semibold mb-1">
+                    Allow Self-Registration
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Allow visitors to register new Student or Admin accounts
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={localRules.allowRegistration}
+                  onChange={(e) => setLocalRules({ ...localRules, allowRegistration: e.target.checked })}
+                  className="w-5 h-5 rounded accent-cyan-400 cursor-pointer"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Role-Based Access Control (RBAC) Matrix */}
+          <div
+            className="rounded-3xl p-6"
+            style={{ background: 'rgba(7, 21, 37, 0.75)', border: '1px solid rgba(20, 184, 166, 0.2)' }}
+          >
+            <div className="mb-4">
+              <h4 className="font-display font-bold text-base text-white flex items-center gap-2">
+                <span>📋</span> Role-Based Permission Mapping Matrix
+              </h4>
+              <p className="text-xs text-slate-400">
+                Visual relationship between Roles (Guest, Student, Admin) and platform capabilities
+              </p>
+            </div>
+
+            <div className="overflow-x-auto rounded-2xl border border-slate-800">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800 bg-slate-900/90 text-slate-400 font-mono text-[11px]">
+                    <th className="p-3.5">Platform Capability / Feature</th>
+                    <th className="p-3.5">Feature Description</th>
+                    <th className="p-3.5 text-center">Guest</th>
+                    <th className="p-3.5 text-center text-teal-400">Student (The Basics)</th>
+                    <th className="p-3.5 text-center text-cyan-400">Admin (Academic)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {ROLE_PERMISSIONS_MATRIX.map((perm, idx) => (
+                    <tr key={idx} className="hover:bg-slate-900/40 transition-colors">
+                      <td className="p-3.5 font-display font-semibold text-white">{perm.feature}</td>
+                      <td className="p-3.5 text-slate-400">{perm.description}</td>
+                      <td className="p-3.5 text-center">
+                        {perm.guest ? <span className="text-emerald-400 font-bold">✓</span> : <span className="text-slate-600">—</span>}
+                      </td>
+                      <td className="p-3.5 text-center bg-teal-950/10">
+                        {perm.student ? <span className="text-teal-400 font-bold text-sm">✓</span> : <span className="text-slate-600">—</span>}
+                      </td>
+                      <td className="p-3.5 text-center bg-cyan-950/10">
+                        {perm.admin ? <span className="text-cyan-400 font-bold text-sm">✓</span> : <span className="text-slate-600">—</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Section 3: User Accounts & Live Role Management */}
+          <div
+            className="rounded-3xl p-6"
+            style={{ background: 'rgba(7, 21, 37, 0.75)', border: '1px solid rgba(34, 211, 238, 0.2)' }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h4 className="font-display font-bold text-base text-white flex items-center gap-2">
+                  <span>👥</span> Registered User Accounts & Live Role Assignment
+                </h4>
+                <p className="text-xs text-slate-400">
+                  Promote or reassign roles directly. Changes immediately affect their access upon sign in.
+                </p>
+              </div>
+              <span className="text-xs font-mono text-cyan-400 bg-slate-900 px-3 py-1 rounded-full border border-slate-700">
+                {registeredUsers.length} Active Accounts
+              </span>
+            </div>
+
+            <div className="overflow-x-auto rounded-2xl border border-slate-800">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800 bg-slate-900/90 text-slate-400 font-mono text-[11px]">
+                    <th className="p-3.5">User</th>
+                    <th className="p-3.5">Email</th>
+                    <th className="p-3.5">Assigned Role</th>
+                    <th className="p-3.5">Effective Landing View</th>
+                    <th className="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {registeredUsers.map((u) => (
+                    <tr key={u.id} className="hover:bg-slate-900/40 transition-colors">
+                      <td className="p-3.5 flex items-center gap-2.5">
+                        <span className="text-xl">{u.avatar || (u.role === 'admin' ? '🛡️' : '🎓')}</span>
+                        <div>
+                          <div className="font-display font-semibold text-white">{u.name}</div>
+                          <div className="text-[10px] font-mono text-slate-500">{u.title || 'Platform Member'}</div>
+                        </div>
+                      </td>
+                      <td className="p-3.5 font-mono text-slate-300 text-[11px]">{u.email || '—'}</td>
+                      <td className="p-3.5">
+                        <select
+                          value={u.role}
+                          onChange={(e) => onUpdateUserRole(u.id, e.target.value as UserRole)}
+                          className="px-2.5 py-1 rounded-lg text-xs font-mono focus:outline-none cursor-pointer"
+                          style={{
+                            background: u.role === 'admin' ? 'rgba(34, 211, 238, 0.15)' : 'rgba(20, 184, 166, 0.15)',
+                            color: u.role === 'admin' ? '#67e8f9' : '#2dd4bf',
+                            border: u.role === 'admin' ? '1px solid rgba(34, 211, 238, 0.4)' : '1px solid rgba(20, 184, 166, 0.4)',
+                          }}
+                        >
+                          <option value="student">🎓 Student</option>
+                          <option value="admin">🛡️ Admin</option>
+                        </select>
+                      </td>
+                      <td className="p-3.5 font-mono text-[11px]">
+                        {u.role === 'student' ? (
+                          <span className="text-teal-400">📖 The Basics Portal</span>
+                        ) : (
+                          <span className="text-cyan-400">📊 Academic Information</span>
+                        )}
+                      </td>
+                      <td className="p-3.5 text-right">
+                        {u.name !== 'admin' && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteUser(u.id)}
+                            className="text-[11px] font-mono text-red-400 hover:text-red-300 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Section 4: Real-time Authentication & Security Audit Trail */}
+          <div
+            className="rounded-3xl p-6"
+            style={{ background: 'rgba(7, 21, 37, 0.75)', border: '1px solid rgba(20, 184, 166, 0.2)' }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h4 className="font-display font-bold text-base text-white flex items-center gap-2">
+                  <span>📜</span> Real-Time Security & Sign-in Audit Log
+                </h4>
+                <p className="text-xs text-slate-400">
+                  Chronological record of login rule validations, role routings, and policy checks
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onClearAuditLogs}
+                className="text-xs font-mono text-slate-400 hover:text-red-400 px-3 py-1 rounded-lg border border-slate-800 hover:border-red-900 transition-colors"
+              >
+                Clear Log
+              </button>
+            </div>
+
+            <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+              {auditLogs.length === 0 ? (
+                <div className="p-6 text-center text-xs font-mono text-slate-500 bg-slate-900/40 rounded-2xl">
+                  No audit entries recorded yet.
+                </div>
+              ) : (
+                auditLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="p-3.5 rounded-xl text-xs font-mono flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                    style={{
+                      background: log.status === 'success' ? 'rgba(16, 185, 129, 0.06)' : 'rgba(239, 68, 68, 0.08)',
+                      border: log.status === 'success' ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(239, 68, 68, 0.25)',
+                    }}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <span className="text-sm mt-0.5">{log.status === 'success' ? '🟢' : '🔴'}</span>
+                      <div>
+                        <div className="text-slate-200 font-semibold flex items-center gap-2">
+                          <span>{log.userName}</span>
+                          <span className="text-[10px] text-slate-400 uppercase">({log.role})</span>
+                          <span
+                            className={`text-[9px] px-2 py-0.5 rounded-full uppercase ${
+                              log.status === 'success'
+                                ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                                : 'bg-red-950 text-red-300 border border-red-800'
+                            }`}
+                          >
+                            {log.action} &bull; {log.status}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 font-sans mt-0.5">{log.details}</p>
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-slate-500 shrink-0 self-start sm:self-center">
+                      {log.timestamp}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}

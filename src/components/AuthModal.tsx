@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, UserRole, AUTH_RULES, validateAuthInput } from '../types/auth';
+import { User, UserRole, AUTH_RULES, AuthRulesConfig, AuditLogEntry, validateAuthInput } from '../types/auth';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -8,6 +8,8 @@ interface AuthModalProps {
   registeredUsers: User[];
   onRegisterUser: (user: User, password: string) => void;
   passwordsMap: Record<string, string>;
+  rules?: AuthRulesConfig;
+  onAddAuditLog?: (entry: Omit<AuditLogEntry, 'id' | 'timestamp'>) => void;
 }
 
 export default function AuthModal({
@@ -17,6 +19,8 @@ export default function AuthModal({
   registeredUsers,
   onRegisterUser,
   passwordsMap,
+  rules,
+  onAddAuditLog,
 }: AuthModalProps) {
   const [mode, setMode] = useState<'signin' | 'register'>('signin');
   const [name, setName] = useState('');
@@ -60,10 +64,17 @@ export default function AuthModal({
     e.preventDefault();
     setErrorMsg(null);
 
-    const validation = validateAuthInput(name, password);
+    const validation = validateAuthInput(name, password, rules);
     if (!validation.isValid) {
       const firstError = validation.errors.name || validation.errors.password || 'Please check your inputs.';
       setErrorMsg(firstError);
+      onAddAuditLog?.({
+        userName: name.trim() || 'Anonymous',
+        role: 'guest',
+        action: 'sign_in',
+        status: 'failed',
+        details: `Validation failed: ${firstError}`,
+      });
       return;
     }
 
@@ -76,16 +87,29 @@ export default function AuthModal({
       );
 
       if (!existingUser) {
-        // If not found in registered accounts, check if password matches general rule or offer auto-sign-in
         setErrorMsg(
           `Account "${trimmedName}" not found. Please check spelling or switch to "Create Account" tab to register.`
         );
+        onAddAuditLog?.({
+          userName: trimmedName,
+          role: 'guest',
+          action: 'sign_in',
+          status: 'failed',
+          details: `Sign-in rejected: No user found with name "${trimmedName}".`,
+        });
         return;
       }
 
       const expectedPassword = passwordsMap[existingUser.name] || passwordsMap[existingUser.name.toLowerCase()];
       if (expectedPassword && expectedPassword !== password) {
         setErrorMsg('Incorrect password for this account. Please try again.');
+        onAddAuditLog?.({
+          userName: existingUser.name,
+          role: existingUser.role,
+          action: 'sign_in',
+          status: 'failed',
+          details: 'Sign-in rejected: Incorrect password entered.',
+        });
         return;
       }
 
@@ -94,10 +118,24 @@ export default function AuthModal({
         ...existingUser,
         lastLogin: `Today at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
       };
+      onAddAuditLog?.({
+        userName: updatedUser.name,
+        role: updatedUser.role,
+        action: 'sign_in',
+        status: 'success',
+        details: `Sign in successful. Routed to ${
+          updatedUser.role === 'student' ? 'The Basics' : 'Academic Information'
+        } under active policy rules.`,
+      });
       onLoginSuccess(updatedUser);
       onClose();
     } else {
       // Register mode
+      if (rules && !rules.allowRegistration) {
+        setErrorMsg('New user registration is currently disabled by system policy.');
+        return;
+      }
+
       const nameExists = registeredUsers.some(
         (u) => u.name.toLowerCase() === trimmedName.toLowerCase()
       );
@@ -119,6 +157,15 @@ export default function AuthModal({
       };
 
       onRegisterUser(newUser, password);
+      onAddAuditLog?.({
+        userName: newUser.name,
+        role: newUser.role,
+        action: 'register',
+        status: 'success',
+        details: `Account registered as ${newUser.role}. Complies with Name (>=${
+          rules?.minNameLength ?? 3
+        }) and Password (>=${rules?.minPasswordLength ?? 6}) rules.`,
+      });
       onLoginSuccess(newUser);
       onClose();
     }
@@ -418,9 +465,11 @@ export default function AuthModal({
           >
             <span className="text-teal-400">ℹ️</span>
             <div>
-              <span className="text-slate-300 font-semibold">Rules enforced: </span>
-              Name &ge; {AUTH_RULES.MIN_NAME_LENGTH} chars, Password &ge; {AUTH_RULES.MIN_PASSWORD_LENGTH} chars.
-              Students view basics; Admins view academic information.
+              <span className="text-slate-300 font-semibold">Active Rules Enforced: </span>
+              Name &ge; {rules?.minNameLength ?? AUTH_RULES.MIN_NAME_LENGTH} chars, Password &ge;{' '}
+              {rules?.minPasswordLength ?? AUTH_RULES.MIN_PASSWORD_LENGTH} chars
+              {rules?.requireSpecialChar ? ' (+ special character required)' : ''}.
+              Role routing: Students $\rightarrow$ The Basics; Admins $\rightarrow$ Academic Information.
             </div>
           </div>
 

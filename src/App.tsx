@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { User } from './types/auth';
-import { DEFAULT_USERS, DEFAULT_PASSWORDS } from './services/mockData';
+import { User, UserRole, AuthRulesConfig, AuditLogEntry } from './types/auth';
+import {
+  DEFAULT_USERS,
+  DEFAULT_PASSWORDS,
+  DEFAULT_AUTH_RULES,
+  INITIAL_AUDIT_LOGS,
+} from './services/mockData';
 import AuthModal from './components/AuthModal';
 import StudentBasicsView from './components/StudentBasicsView';
 import AdminAcademicView from './components/AdminAcademicView';
@@ -1632,6 +1637,95 @@ export default function App() {
     return DEFAULT_PASSWORDS;
   });
 
+  // Dynamic Auth Rules State (Connected to Dashboard)
+  const [authRules, setAuthRules] = useState<AuthRulesConfig>(() => {
+    const saved = localStorage.getItem('microsphere_auth_rules');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return DEFAULT_AUTH_RULES;
+  });
+
+  // Audit Logs State (Connected to Dashboard)
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => {
+    const saved = localStorage.getItem('microsphere_audit_logs');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return INITIAL_AUDIT_LOGS;
+  });
+
+  const handleAddAuditLog = (entry: Omit<AuditLogEntry, 'id' | 'timestamp'>) => {
+    const newLog: AuditLogEntry = {
+      ...entry,
+      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      timestamp: `Today, ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+    };
+    const updated = [newLog, ...auditLogs];
+    setAuditLogs(updated);
+    localStorage.setItem('microsphere_audit_logs', JSON.stringify(updated));
+  };
+
+  const handleUpdateRules = (newRules: AuthRulesConfig) => {
+    setAuthRules(newRules);
+    localStorage.setItem('microsphere_auth_rules', JSON.stringify(newRules));
+    handleAddAuditLog({
+      userName: currentUser?.name || 'admin',
+      role: 'admin',
+      action: 'rule_update',
+      status: 'success',
+      details: `Authentication rules updated: Min Name=${newRules.minNameLength}, Min Pass=${newRules.minPasswordLength}, SpecialChar=${newRules.requireSpecialChar}, SelfReg=${newRules.allowRegistration}.`,
+    });
+  };
+
+  const handleClearAuditLogs = () => {
+    setAuditLogs([]);
+    localStorage.removeItem('microsphere_audit_logs');
+  };
+
+  const handleUpdateUserRole = (userId: string, newRole: UserRole) => {
+    const targetUser = registeredUsers.find((u) => u.id === userId);
+    const updated = registeredUsers.map((u) => (u.id === userId ? { ...u, role: newRole } : u));
+    setRegisteredUsers(updated);
+    localStorage.setItem('microsphere_registered_users', JSON.stringify(updated));
+
+    handleAddAuditLog({
+      userName: currentUser?.name || 'admin',
+      role: 'admin',
+      action: 'role_change',
+      status: 'success',
+      details: `User "${targetUser?.name || userId}" role updated to "${newRole}". New rule route effective upon sign in.`,
+    });
+
+    // If changing role of the currently logged-in user:
+    if (currentUser && currentUser.id === userId) {
+      const updatedCurr = { ...currentUser, role: newRole };
+      setCurrentUser(updatedCurr);
+      localStorage.setItem('microsphere_auth_user', JSON.stringify(updatedCurr));
+      setCurrentView(newRole === 'student' ? 'student-basics' : 'admin-academic');
+    }
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    const targetUser = registeredUsers.find((u) => u.id === userId);
+    if (confirm(`Remove account "${targetUser?.name}" from the system?`)) {
+      const updated = registeredUsers.filter((u) => u.id !== userId);
+      setRegisteredUsers(updated);
+      localStorage.setItem('microsphere_registered_users', JSON.stringify(updated));
+      handleAddAuditLog({
+        userName: currentUser?.name || 'admin',
+        role: 'admin',
+        action: 'role_change',
+        status: 'success',
+        details: `Account "${targetUser?.name}" deleted from registered users directory.`,
+      });
+    }
+  };
+
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
     localStorage.setItem('microsphere_auth_user', JSON.stringify(user));
@@ -1647,6 +1741,15 @@ export default function App() {
   };
 
   const handleSignOut = () => {
+    if (currentUser) {
+      handleAddAuditLog({
+        userName: currentUser.name,
+        role: currentUser.role,
+        action: 'sign_out',
+        status: 'success',
+        details: 'User logged out cleanly. Session returned to guest mode.',
+      });
+    }
     setCurrentUser(null);
     localStorage.removeItem('microsphere_auth_user');
     setCurrentView('main');
@@ -1690,6 +1793,7 @@ export default function App() {
             setCurrentView('main');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
+          rules={authRules}
         />
       ) : currentView === 'admin-academic' && currentUser?.role === 'admin' ? (
         <AdminAcademicView
@@ -1698,6 +1802,13 @@ export default function App() {
             setCurrentView('main');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
+          rules={authRules}
+          onUpdateRules={handleUpdateRules}
+          registeredUsers={registeredUsers}
+          onUpdateUserRole={handleUpdateUserRole}
+          onDeleteUser={handleDeleteUser}
+          auditLogs={auditLogs}
+          onClearAuditLogs={handleClearAuditLogs}
         />
       ) : (
         <>
@@ -1726,6 +1837,8 @@ export default function App() {
         registeredUsers={registeredUsers}
         onRegisterUser={handleRegisterUser}
         passwordsMap={passwordsMap}
+        rules={authRules}
+        onAddAuditLog={handleAddAuditLog}
       />
     </div>
   );

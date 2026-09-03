@@ -6,6 +6,9 @@ import {
   StudentAcademicRecord,
   AcademicCourse,
   AcademicAnnouncement,
+  AuthRulesConfig,
+  RolePermission,
+  AuditLogEntry,
 } from '../types/auth';
 
 // ============================================================
@@ -508,5 +511,130 @@ export const INITIAL_ANNOUNCEMENTS: AcademicAnnouncement[] = [
     targetAudience: 'All',
     content:
       'All students and faculty working with clinical specimens or resistant bacterial strains must complete the updated annual BSL-2 autoclaving, aerosol containment, and waste disposal certification by Friday 5:00 PM.',
+  },
+];
+
+// ============================================================
+// DASHBOARD CONNECTED RULES & RBAC POLICIES
+// ============================================================
+
+export const DEFAULT_AUTH_RULES: AuthRulesConfig = {
+  minNameLength: 3,
+  minPasswordLength: 6,
+  requireSpecialChar: false,
+  allowRegistration: true,
+  studentDefaultRoute: 'student-basics',
+  adminDefaultRoute: 'admin-academic',
+};
+
+export const ROLE_PERMISSIONS_MATRIX: RolePermission[] = [
+  {
+    feature: 'Public Microbial Explorer',
+    description: 'Explore 6 kingdoms, timeline, and lab equipment overview',
+    guest: true,
+    student: true,
+    admin: true,
+  },
+  {
+    feature: 'The Basics: Foundational Modules',
+    description: 'Access core cell structures, Gram staining, and growth kinetics',
+    guest: false,
+    student: true,
+    admin: true,
+  },
+  {
+    feature: 'Interactive Flashcards & Terminology',
+    description: 'Study 8 fundamental terminology flip-cards with examples',
+    guest: false,
+    student: true,
+    admin: true,
+  },
+  {
+    feature: 'Basics Knowledge Check Quiz',
+    description: '5-question interactive self-assessment with score grading',
+    guest: false,
+    student: true,
+    admin: true,
+  },
+  {
+    feature: 'Student Study Checklist & Notes',
+    description: 'Personal study milestones and auto-saved notes scratchpad',
+    guest: false,
+    student: true,
+    admin: false,
+  },
+  {
+    feature: 'Academic Student Rosters & GPAs',
+    description: 'View full student database, standing, attendance, and grades',
+    guest: false,
+    student: false,
+    admin: true,
+  },
+  {
+    feature: 'Grade Ledger & GPA Editing',
+    description: 'Modify student GPAs, update honors, or drop academic records',
+    guest: false,
+    student: false,
+    admin: true,
+  },
+  {
+    feature: 'Curriculum & Syllabi Management',
+    description: 'Manage course credit hours, instructor assignments, and room schedules',
+    guest: false,
+    student: false,
+    admin: true,
+  },
+  {
+    feature: 'Academic Notice Publishing',
+    description: 'Draft, prioritize, and broadcast official notices to students',
+    guest: false,
+    student: false,
+    admin: true,
+  },
+  {
+    feature: 'Authentication Rules & Role Control',
+    description: 'Configure password/name rules, promote roles, and view audit logs',
+    guest: false,
+    student: false,
+    admin: true,
+  },
+];
+
+export const INITIAL_AUDIT_LOGS: AuditLogEntry[] = [
+  {
+    id: 'log-01',
+    timestamp: 'Today, 09:15 AM',
+    userName: 'admin',
+    role: 'admin',
+    action: 'sign_in',
+    status: 'success',
+    details: 'Signed in successfully. Policy enforced: Name >= 3, Password >= 6 -> Routed to Academic Information Dashboard.',
+  },
+  {
+    id: 'log-02',
+    timestamp: 'Today, 10:40 AM',
+    userName: 'student',
+    role: 'student',
+    action: 'sign_in',
+    status: 'success',
+    details: 'Signed in successfully. Policy enforced: Student account verified -> Routed to The Basics Learning Suite.',
+  },
+  {
+    id: 'log-03',
+    timestamp: 'Today, 11:05 AM',
+    userName: 'Alex Rivera',
+    role: 'student',
+    action: 'sign_in',
+    status: 'success',
+    details: 'Student access authorized. Checklist and flashcards initialized.',
+  },
+  {
+    id: 'log-04',
+    timestamp: 'Yesterday, 04:30 PM',
+    userName: 'Anonymous (Guest)',
+    role: 'guest',
+    action: 'sign_in',
+    status: 'failed',
+    details: 'Rejected: Password length (4) violated minimum required password rule (min 6 characters).',
   },
 ];

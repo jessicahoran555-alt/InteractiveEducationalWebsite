@@ -15,16 +15,34 @@ export interface User {
   lastLogin?: string;
 }
 
-export interface AuthValidationResult {
-  isValid: boolean;
-  errors: {
-    name?: string;
-    password?: string;
-    general?: string;
-  };
+export interface AuthRulesConfig {
+  minNameLength: number;
+  minPasswordLength: number;
+  requireSpecialChar: boolean;
+  allowRegistration: boolean;
+  studentDefaultRoute: 'student-basics' | 'main';
+  adminDefaultRoute: 'admin-academic' | 'main';
 }
 
-// Rules for validation
+export interface AuditLogEntry {
+  id: string;
+  timestamp: string;
+  userName: string;
+  role: UserRole | 'guest';
+  action: 'sign_in' | 'register' | 'sign_out' | 'rule_update' | 'role_change';
+  status: 'success' | 'failed';
+  details: string;
+}
+
+export interface RolePermission {
+  feature: string;
+  description: string;
+  guest: boolean;
+  student: boolean;
+  admin: boolean;
+}
+
+// Default static fallback rules
 export const AUTH_RULES = {
   MIN_NAME_LENGTH: 3,
   MIN_PASSWORD_LENGTH: 6,
@@ -32,15 +50,23 @@ export const AUTH_RULES = {
   PASSWORD_RULE_TEXT: 'Password must be at least 6 characters long',
 };
 
-export function validateAuthInput(name: string, password: string): AuthValidationResult {
+export function validateAuthInput(
+  name: string,
+  password: string,
+  config?: Partial<AuthRulesConfig>
+): AuthValidationResult {
   const errors: AuthValidationResult['errors'] = {};
+  const minName = config?.minNameLength ?? AUTH_RULES.MIN_NAME_LENGTH;
+  const minPass = config?.minPasswordLength ?? AUTH_RULES.MIN_PASSWORD_LENGTH;
 
-  if (!name || name.trim().length < AUTH_RULES.MIN_NAME_LENGTH) {
-    errors.name = AUTH_RULES.NAME_RULE_TEXT;
+  if (!name || name.trim().length < minName) {
+    errors.name = `Name must be at least ${minName} characters long`;
   }
 
-  if (!password || password.length < AUTH_RULES.MIN_PASSWORD_LENGTH) {
-    errors.password = AUTH_RULES.PASSWORD_RULE_TEXT;
+  if (!password || password.length < minPass) {
+    errors.password = `Password must be at least ${minPass} characters long`;
+  } else if (config?.requireSpecialChar && !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    errors.password = 'Password must include at least one special character (!@#$%^&*)';
   }
 
   return {
